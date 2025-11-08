@@ -9,7 +9,7 @@ class DeatonModel:
     Solves the Deaton (1991) consumption-savings problem using the Endogenous Grid Method (EGM).
     """
     
-    def __init__(self, r=0.05, delta=0.10, gamma=2, y_mean=100, y_std=10, 
+    def __init__(self, r=0.05, delta=0.10, rho=2, mu=100, sigma=10, 
                  N=100, a_max=100, S=10, phi=0.0):
         """
         Initialize the Deaton consumption-savings model.
@@ -20,11 +20,11 @@ class DeatonModel:
             Real interest rate
         delta : float
             Rate of time preference
-        gamma : float
+        rho : float
             Coefficient of relative risk aversion
-        y_mean : float
+        mu : float
             Mean income level
-        y_std : float
+        sigma : float
             Standard deviation of income
         N : int
             Number of asset grid points
@@ -39,8 +39,8 @@ class DeatonModel:
         self.r = r
         self.R = 1 + r
         self.delta = delta
-        self.beta = (1 + r) / (1 + delta)
-        self.gamma = gamma
+        self.beta = round((1 + r) / (1 + delta), 2) 
+        self.rho = rho
         
         # Asset grid
         self.N = N
@@ -50,10 +50,10 @@ class DeatonModel:
         
         # Income states
         self.S = S
-        self.y_mean = y_mean
-        self.y_std = y_std
-        self.y_grid_iid, self.Pi_iid = tauchen(mu=y_mean, phi=phi, sigma=y_std, 
-                                               n_states=S, m=9)
+        self.mu = mu
+        self.sigma = sigma
+        self.y_grid_iid, self.Pi_iid = tauchen(mu=mu, phi=phi, sigma=sigma, 
+                                               n_states=S, m=4)
         
         # Create w' grid
         self.wprime = np.zeros((self.N, self.S))
@@ -102,7 +102,7 @@ class DeatonModel:
                         c_prime = self.c_old[n, s_prime]
                         
                         # Marginal utility
-                        u_prime_val = u_prime(c_prime, self.gamma)
+                        u_prime_val = u_prime(c_prime, self.rho)
                         
                         # Weight by transition probability
                         expected_marginal_utility += self.Pi_iid[s, s_prime] * u_prime_val
@@ -110,7 +110,7 @@ class DeatonModel:
                     RHS[n, s] = self.beta * self.R * expected_marginal_utility
 
             # Step 5: Invert to get current consumption
-            c_new = inv_uprime(RHS, self.gamma)
+            c_new = inv_uprime(RHS, self.rho)
             
             # Step 6: Recover endogenous wealth grid
             w_endo = self.aprime_grid[:, None] / self.R + c_new
@@ -175,7 +175,7 @@ class DeatonModel:
         
         return self.c_old
     
-    def plot_consumption_function(self, save=True, filename='consumption_function.png'):
+    def plot_consumption_function(self, filepath, filename, save=True):
         """
         Plot the consumption function for all income states.
     
@@ -201,19 +201,97 @@ class DeatonModel:
 
         plt.xlabel('Cash on Hand (w)')
         plt.ylabel('Consumption (c)')
-        plt.xlim(0, 250)
-        plt.ylim(0, 250)
+        plt.xlim(0, 350)
+        plt.ylim(0, 350)
         plt.title('Consumption Function (Deaton Model)')
         plt.legend()
         plt.grid(True, alpha=0.3)
     
         
-        plt.savefig('figures/consumption_function.png', dpi=300, bbox_inches='tight')
+        plt.savefig(f"{filepath}/{filename}.pdf")
         
-    
-        plt.show()
+
 # Usage
-if __name__ == "__main__":
-    model = DeatonModel()
-    model.solve(max_iter=10, verbose=True)
-    model.plot_consumption_function()
+#if __name__ == "__main__":
+#    model = DeatonModel()
+#    model.solve(max_iter=10, verbose=True)
+#    model.plot_consumption_function()
+def simulate_lifecycle(model, T=200, seed=0, filepath=None, filename=None):
+    """
+    Simulate income, consumption, and assets over time using the solved policy function.
+    Enforces the exact budget constraint a_{t+1} = (a_t + y_t - c_t) * R,
+    and rounds all key variables to 3 decimals for numerical stability.
+    """
+
+    import numpy as np
+    import matplotlib.pyplot as plt
+
+    np.random.seed(seed)
+
+    # Initialize arrays
+    income_idx = np.zeros(T, dtype=int)
+    income = np.zeros(T)
+    consumption = np.zeros(T)
+    assets = np.zeros(T + 1)
+    cash_on_hand = np.zeros(T)
+
+    # Start at mean income state, zero assets
+    s = model.S // 2
+    income_idx[0] = s
+    income[0] = round(model.y_grid_iid[s], 3)
+    assets[0] = 0.0
+
+    for t in range(T):
+        # Cash-on-hand this period
+        w = round(assets[t] + income[t], 3)
+        print("time:", t)
+        print("cash on hand:", w)
+        print("assets", assets[t])
+        print("income", income[t])
+        cash_on_hand[t] = w
+
+        # Interpolate consumption policy (bounded within grid)
+        w_grid = model.wprime[:, s]
+        c_policy = model.c_old[:, s]
+        w_clamped = np.clip(w, w_grid.min(), w_grid.max())
+        c_t = np.interp(w_clamped, w_grid, c_policy)
+
+        # Enforce feasibility and round
+        c_t = np.clip(c_t, 0, w)
+        c_t = round(c_t, 3)
+        consumption[t] = c_t
+        print("consumption:", c_t)
+        print("**************************************************")
+
+        # Exact budget constraint (apply R after consumption)
+        a_next = (assets[t] + income[t] - c_t) * model.R
+        a_next = max(a_next, 0.0)
+        assets[t + 1] = round(a_next, 3)
+
+        # Draw next income state (IID)
+        s = np.random.choice(np.arange(model.S), p=model.Pi_iid[income_idx[t]])
+        income_idx[t] = s
+        if t + 1 < T:
+            income[t + 1] = round(model.y_grid_iid[s], 3)
+
+    # Trim last asset entry
+    assets = assets[:-1]
+
+    # --- Plot ---
+    plt.figure(figsize=(10, 6))
+    plt.plot(income, label='Income', color='tab:green', linewidth=2)
+    plt.plot(consumption - 40, label='Consumption - 40', color='tab:blue', linewidth=2)
+    plt.plot(assets, label='Assets', color='tab:red', linewidth=2)
+    plt.xlabel("Period")
+    plt.ylabel("Level")
+    plt.title("Simulated Paths: Income, Consumption (-40), and Assets")
+    plt.legend()
+    plt.grid(alpha=0.3)
+    plt.ylim(0, 150)
+    plt.tight_layout()
+
+    if filepath and filename:
+        plt.savefig(f"{filepath}/{filename}.pdf")
+        plt.close()
+    else:
+        plt.show()
