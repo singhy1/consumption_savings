@@ -2,6 +2,7 @@ import numpy as np
 from utilities import utility, u_prime, inv_uprime, tauchen, simulate_markov_chain, stationary_stats
 from scipy.interpolate import PchipInterpolator 
 import matplotlib.pyplot as plt
+import pandas as pd 
 
 
 class DeatonModel:
@@ -210,87 +211,101 @@ class DeatonModel:
         
         plt.savefig(f"{filepath}/{filename}.pdf")
         
-    def plot_lifecycle(self, T=200, seed=42, filepath=None, filename=None):
+    def simulate_lifecycle(self, T=200, seed=42):
         """
-        Simulate and plot lifecycle paths for income, consumption, and assets.
-    
-        This method:
-        1. Simulates an income path using the model's Markov process
-        2. Applies the solved consumption policy function
-        3. Tracks asset accumulation
-        4. Plots all three series
-    
+        Simulate lifecycle paths for income, consumption, and assets.
+
         Parameters:
         -----------
         T : int
             Number of periods to simulate
         seed : int
             Random seed for reproducibility
-        filepath : str, optional
-            Path to save figure
-        filename : str, optional
-            Filename for saved figure
-        
+    
         Returns:
         --------
         dict with keys: 'income', 'consumption', 'assets'
         """
         if self.c_old is None:
             raise ValueError("Model not solved yet. Call solve() first.")
-    
+
         # Step 1: Simulate income process
         pi_stat, _, _ = stationary_stats(self.Pi, self.y_grid)
         income = simulate_markov_chain(self.Pi, self.y_grid, pi_stat, T=T, seed=seed)
-    
+
         # Step 2: Initialize arrays
         consumption = np.zeros(T)
         assets = np.zeros(T + 1)
         assets[0] = 0.0  # Start with zero assets
-    
+
         # Step 3: Simulate consumption and assets using policy function
         for t in range(T):
             # Find income state (closest grid point)
             s = np.argmin(np.abs(self.y_grid - income[t]))
-        
+    
             # Cash on hand
             w = assets[t] + income[t]
-        
+    
             # Look up consumption policy for this state
             w_grid = self.wprime[:, s]
             c_policy = self.c_old[:, s]
-        
+    
             # Interpolate if necessary
             w_clamped = np.clip(w, w_grid.min(), w_grid.max())
             c_t = np.interp(w_clamped, w_grid, c_policy)
             c_t = np.clip(c_t, 0, w)
             consumption[t] = c_t
-        
+    
             # Update assets via budget constraint
             assets[t + 1] = self.R * (w - c_t)
             assets[t + 1] = max(assets[t + 1], 0.0)
-    
+
         # Trim last asset entry
         assets = assets[:-1]
-    
-        # Step 4: Print summary statistics
+
+        # Print summary statistics
         print("\n" + "="*60)
         print("LIFECYCLE SIMULATION SUMMARY")
         print("="*60)
         print(f"Income:       mean={income.mean():.2f}, std={income.std():.2f}")
         print(f"Consumption:  mean={consumption.mean():.2f}, std={consumption.std():.2f}")
         print(f"Assets:       mean={assets.mean():.2f}, std={assets.std():.2f}")
-    
-        # Step 5: Plot
+
+        return {
+            'income': income,
+            'consumption': consumption,
+            'assets': assets
+        }
+
+
+    def save_lifecycle_plot(self, data, filepath, filename):
+        """
+        Plot and save lifecycle simulation results.
+
+        Parameters:
+        -----------
+        data : dict
+            Dictionary with 'income', 'consumption', 'assets' arrays
+        filepath : str
+            Path to save figure
+        filename : str
+            Filename for saved figure (without extension)
+        """
+        income = data['income']
+        consumption = data['consumption']
+        assets = data['assets']
+        T = len(income)
+
         plt.figure(figsize=(12, 7))
-    
+
         time = np.arange(T)
         plt.plot(time, income, label='Income', 
-             color='black', linewidth=1.5, linestyle='-')
+         color='black', linewidth=1.5, linestyle='-')
         plt.plot(time, consumption - 40, label='Consumption - 40', 
-             color='black', linewidth=1.5, linestyle='--')
+         color='black', linewidth=1.5, linestyle='--')
         plt.plot(time, assets, label='Assets', 
-             color='black', linewidth=1.5, linestyle=':')
-    
+         color='black', linewidth=1.5, linestyle=':')
+
         plt.xlabel("Period", fontsize=12)
         plt.ylabel("Level", fontsize=12)
         plt.title("Lifecycle Simulation (Deaton 1991)", fontsize=13)
@@ -299,17 +314,57 @@ class DeatonModel:
         plt.xlim(0, T)
         plt.ylim(0, 150)
         plt.tight_layout()
+
+        plt.savefig(f"{filepath}/{filename}.pdf", dpi=300)
+        print(f"Figure saved to: {filepath}/{filename}.pdf")
+        plt.close()
+
+    def save_lifecycle_table(self, data, filepath, filename):
+        """
+        Generate and save AER-style LaTeX summary table.
+
+        Parameters:
+        -----------
+        data : dict
+            Dictionary with 'income', 'consumption', 'assets' arrays
+        filepath : str
+            Path to save table
+        filename : str
+            Filename for saved table (without extension)
+        """
+        income = data['income']
+        consumption = data['consumption']
+        assets = data['assets']
+
+        # Create AER-style LaTeX table
+        latex_table = r"""\begin{table}[htbp]
+    \centering
+    \caption{Lifecycle Simulation: Summary Statistics}
+    \label{tab:lifecycle_summary}
+    \begin{tabular}{@{\extracolsep{5pt}}lcc}
+    \hline\hline
+    \\[-1.8ex]
+     & Mean & Std. Dev. \\
+    \hline
+    \\[-1.8ex]
+    """
     
-        if filepath and filename:
-            plt.savefig(f"{filepath}/{filename}.pdf", dpi=300)
-            print(f"Figure saved to: {filepath}/{filename}.pdf")
-            plt.close()
-        else:
-            plt.show()
+        latex_table += f"Income & {income.mean():.2f} & {income.std():.2f} \\\\\n"
+        latex_table += f"Consumption & {consumption.mean():.2f} & {consumption.std():.2f} \\\\\n"
+        latex_table += f"Assets & {assets.mean():.2f} & {assets.std():.2f} \\\\\n"
     
-        return {
-            'income': income,
-            'consumption': consumption,
-            'assets': assets
-        }               
-    
+        latex_table += r"""\\[-1.8ex]
+    \hline\hline
+    \end{tabular}
+    \begin{tablenotes}[para,flushleft]
+    \small
+    \textit{Note:} Statistics computed from a simulated lifecycle of """ + f"{len(income)}" + r""" periods.
+    The consumer faces an AR(1) income process and makes optimal consumption-saving decisions.
+    \end{tablenotes}
+    \end{table}
+    """
+
+        with open(f"{filepath}/{filename}.tex", "w") as f: 
+            f.write(latex_table)
+
+        print(f"LaTeX table saved to: {filepath}/{filename}.tex")

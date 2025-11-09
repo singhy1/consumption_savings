@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Set your figure path
-figure_path = "C:/Users/yash2/OneDrive/Desktop/phd_classes/macro_1/consumption_savings/figures"
+output_path = "C:/Users/yash2/OneDrive/Desktop/phd_classes/macro_1/consumption_savings/output"
 
 # Define model configurations
 model_configs = [
@@ -20,7 +20,7 @@ print("Solving models...\n")
 for i, config in enumerate(model_configs, 1):
     print(f"Model {i}: rho={config['rho']}, sigma={config['sigma']}")
     model = DeatonModel(r=0.05, delta=0.10, rho=config['rho'], sigma=config['sigma'])
-    model.solve(max_iter=100, verbose=False)
+    model.solve(max_iter=1000, verbose=False)
     
     # Print convergence info
     if model.converged:
@@ -64,8 +64,8 @@ plt.grid(True, alpha=0.3)
 plt.tight_layout()
 
 # Save the figure
-plt.savefig(f"{figure_path}/fig1.pdf")
+plt.savefig(f"{output_path}/figures/fig1.pdf")
 plt.close()  # Close the figure without showing it
-print(f"Figure saved to: {figure_path}/fig1.pdf")
+print(f"Figure saved to: {output_path}/fig1.pdf")
 
 print("\nAll done!")
