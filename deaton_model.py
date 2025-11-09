@@ -1,5 +1,5 @@
 import numpy as np 
-from utilities import utility, u_prime, inv_uprime, tauchen
+from utilities import utility, u_prime, inv_uprime, tauchen, simulate_markov_chain, stationary_stats
 from scipy.interpolate import PchipInterpolator 
 import matplotlib.pyplot as plt
 
@@ -52,14 +52,14 @@ class DeatonModel:
         self.S = S
         self.mu = mu
         self.sigma = sigma
-        self.y_grid_iid, self.Pi_iid = tauchen(mu=mu, phi=phi, sigma=sigma, 
+        self.y_grid, self.Pi = tauchen(mu=mu, phi=phi, sigma=sigma, 
                                                n_states=S, m=4)
         
         # Create w' grid
         self.wprime = np.zeros((self.N, self.S))
         for n in range(self.N):
             for s in range(self.S):
-                self.wprime[n, s] = self.aprime_grid[n] + self.y_grid_iid[s]
+                self.wprime[n, s] = self.aprime_grid[n] + self.y_grid[s]
         
         # Initialize consumption function - consume everything
         self.c_old = self.wprime.copy()
@@ -105,7 +105,7 @@ class DeatonModel:
                         u_prime_val = u_prime(c_prime, self.rho)
                         
                         # Weight by transition probability
-                        expected_marginal_utility += self.Pi_iid[s, s_prime] * u_prime_val
+                        expected_marginal_utility += self.Pi[s, s_prime] * u_prime_val
                     
                     RHS[n, s] = self.beta * self.R * expected_marginal_utility
 
@@ -126,9 +126,9 @@ class DeatonModel:
                 
                 # Add borrowing constraint point only if it's below the minimum endogenous wealth
                 # At the constraint: w = y(s), c = y(s) (consume all income, save nothing)
-                if self.y_grid_iid[s] < w_endo_sorted[0]:
-                    w_with_constraint = np.concatenate([[self.y_grid_iid[s]], w_endo_sorted])
-                    c_with_constraint = np.concatenate([[self.y_grid_iid[s]], c_new_sorted])
+                if self.y_grid[s] < w_endo_sorted[0]:
+                    w_with_constraint = np.concatenate([[self.y_grid[s]], w_endo_sorted])
+                    c_with_constraint = np.concatenate([[self.y_grid[s]], c_new_sorted])
                 else:
                     # Constraint is not binding in this region
                     w_with_constraint = w_endo_sorted
@@ -238,8 +238,6 @@ class DeatonModel:
         if self.c_old is None:
             raise ValueError("Model not solved yet. Call solve() first.")
     
-        from utilities import simulate_markov_chain, stationary_stats
-    
         # Step 1: Simulate income process
         pi_stat, _, _ = stationary_stats(self.Pi, self.y_grid)
         income = simulate_markov_chain(self.Pi, self.y_grid, pi_stat, T=T, seed=seed)
@@ -281,8 +279,6 @@ class DeatonModel:
         print(f"Income:       mean={income.mean():.2f}, std={income.std():.2f}")
         print(f"Consumption:  mean={consumption.mean():.2f}, std={consumption.std():.2f}")
         print(f"Assets:       mean={assets.mean():.2f}, std={assets.std():.2f}")
-        print(f"Saving rate:  {((income - consumption)/income).mean():.2%}")
-        print("="*60 + "\n")
     
         # Step 5: Plot
         plt.figure(figsize=(12, 7))
@@ -317,90 +313,3 @@ class DeatonModel:
             'assets': assets
         }               
     
-      
-
-
-# Usage
-#if __name__ == "__main__":
-#    model = DeatonModel()
-#    model.solve(max_iter=10, verbose=True)
-#    model.plot_consumption_function()
-def simulate_lifecycle(model, T=200, seed=0, filepath=None, filename=None):
-    """
-    Simulate income, consumption, and assets over time using the solved policy function.
-    Enforces the exact budget constraint a_{t+1} = (a_t + y_t - c_t) * R,
-    and rounds all key variables to 3 decimals for numerical stability.
-    """
-
-    import numpy as np
-    import matplotlib.pyplot as plt
-
-    np.random.seed(seed)
-
-    # Initialize arrays
-    income_idx = np.zeros(T, dtype=int)
-    income = np.zeros(T)
-    consumption = np.zeros(T)
-    assets = np.zeros(T + 1)
-    cash_on_hand = np.zeros(T)
-
-    # Start at mean income state, zero assets
-    s = model.S // 2
-    income_idx[0] = s
-    income[0] = round(model.y_grid_iid[s], 3)
-    assets[0] = 0.0
-
-    for t in range(T):
-        # Cash-on-hand this period
-        w = round(assets[t] + income[t], 3)
-        print("time:", t)
-        print("cash on hand:", w)
-        print("assets", assets[t])
-        print("income", income[t])
-        cash_on_hand[t] = w
-
-        # Interpolate consumption policy (bounded within grid)
-        w_grid = model.wprime[:, s]
-        c_policy = model.c_old[:, s]
-        w_clamped = np.clip(w, w_grid.min(), w_grid.max())
-        c_t = np.interp(w_clamped, w_grid, c_policy)
-
-        # Enforce feasibility and round
-        c_t = np.clip(c_t, 0, w)
-        c_t = round(c_t, 3)
-        consumption[t] = c_t
-        print("consumption:", c_t)
-        print("**************************************************")
-
-        # Exact budget constraint (apply R after consumption)
-        a_next = (assets[t] + income[t] - c_t) * model.R
-        a_next = max(a_next, 0.0)
-        assets[t + 1] = round(a_next, 3)
-
-        # Draw next income state (IID)
-        s = np.random.choice(np.arange(model.S), p=model.Pi_iid[income_idx[t]])
-        income_idx[t] = s
-        if t + 1 < T:
-            income[t + 1] = round(model.y_grid_iid[s], 3)
-
-    # Trim last asset entry
-    assets = assets[:-1]
-
-    # --- Plot ---
-    plt.figure(figsize=(10, 6))
-    plt.plot(income, label='Income', color='tab:green', linewidth=2)
-    plt.plot(consumption - 40, label='Consumption - 40', color='tab:blue', linewidth=2)
-    plt.plot(assets, label='Assets', color='tab:red', linewidth=2)
-    plt.xlabel("Period")
-    plt.ylabel("Level")
-    plt.title("Simulated Paths: Income, Consumption (-40), and Assets")
-    plt.legend()
-    plt.grid(alpha=0.3)
-    plt.ylim(0, 150)
-    plt.tight_layout()
-
-    if filepath and filename:
-        plt.savefig(f"{filepath}/{filename}.pdf")
-        plt.close()
-    else:
-        plt.show()
