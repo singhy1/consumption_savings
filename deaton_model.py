@@ -98,7 +98,7 @@ class DeatonModel:
                     expected_marginal_utility = 0.0
                     
                     for s_prime in range(self.S):
-                        # Direct lookup - no interpolation needed!
+                        
                         c_prime = self.c_old[n, s_prime]
                         
                         # Marginal utility
@@ -210,6 +210,115 @@ class DeatonModel:
         
         plt.savefig(f"{filepath}/{filename}.pdf")
         
+    def plot_lifecycle(self, T=200, seed=42, filepath=None, filename=None):
+        """
+        Simulate and plot lifecycle paths for income, consumption, and assets.
+    
+        This method:
+        1. Simulates an income path using the model's Markov process
+        2. Applies the solved consumption policy function
+        3. Tracks asset accumulation
+        4. Plots all three series
+    
+        Parameters:
+        -----------
+        T : int
+            Number of periods to simulate
+        seed : int
+            Random seed for reproducibility
+        filepath : str, optional
+            Path to save figure
+        filename : str, optional
+            Filename for saved figure
+        
+        Returns:
+        --------
+        dict with keys: 'income', 'consumption', 'assets'
+        """
+        if self.c_old is None:
+            raise ValueError("Model not solved yet. Call solve() first.")
+    
+        from utilities import simulate_markov_chain, stationary_stats
+    
+        # Step 1: Simulate income process
+        pi_stat, _, _ = stationary_stats(self.Pi, self.y_grid)
+        income = simulate_markov_chain(self.Pi, self.y_grid, pi_stat, T=T, seed=seed)
+    
+        # Step 2: Initialize arrays
+        consumption = np.zeros(T)
+        assets = np.zeros(T + 1)
+        assets[0] = 0.0  # Start with zero assets
+    
+        # Step 3: Simulate consumption and assets using policy function
+        for t in range(T):
+            # Find income state (closest grid point)
+            s = np.argmin(np.abs(self.y_grid - income[t]))
+        
+            # Cash on hand
+            w = assets[t] + income[t]
+        
+            # Look up consumption policy for this state
+            w_grid = self.wprime[:, s]
+            c_policy = self.c_old[:, s]
+        
+            # Interpolate if necessary
+            w_clamped = np.clip(w, w_grid.min(), w_grid.max())
+            c_t = np.interp(w_clamped, w_grid, c_policy)
+            c_t = np.clip(c_t, 0, w)
+            consumption[t] = c_t
+        
+            # Update assets via budget constraint
+            assets[t + 1] = self.R * (w - c_t)
+            assets[t + 1] = max(assets[t + 1], 0.0)
+    
+        # Trim last asset entry
+        assets = assets[:-1]
+    
+        # Step 4: Print summary statistics
+        print("\n" + "="*60)
+        print("LIFECYCLE SIMULATION SUMMARY")
+        print("="*60)
+        print(f"Income:       mean={income.mean():.2f}, std={income.std():.2f}")
+        print(f"Consumption:  mean={consumption.mean():.2f}, std={consumption.std():.2f}")
+        print(f"Assets:       mean={assets.mean():.2f}, std={assets.std():.2f}")
+        print(f"Saving rate:  {((income - consumption)/income).mean():.2%}")
+        print("="*60 + "\n")
+    
+        # Step 5: Plot
+        plt.figure(figsize=(12, 7))
+    
+        time = np.arange(T)
+        plt.plot(time, income, label='Income', 
+             color='black', linewidth=1.5, linestyle='-')
+        plt.plot(time, consumption - 40, label='Consumption - 40', 
+             color='black', linewidth=1.5, linestyle='--')
+        plt.plot(time, assets, label='Assets', 
+             color='black', linewidth=1.5, linestyle=':')
+    
+        plt.xlabel("Period", fontsize=12)
+        plt.ylabel("Level", fontsize=12)
+        plt.title("Lifecycle Simulation (Deaton 1991)", fontsize=13)
+        plt.legend(loc='upper right', fontsize=11)
+        plt.grid(True, alpha=0.3)
+        plt.xlim(0, T)
+        plt.ylim(0, 150)
+        plt.tight_layout()
+    
+        if filepath and filename:
+            plt.savefig(f"{filepath}/{filename}.pdf", dpi=300)
+            print(f"Figure saved to: {filepath}/{filename}.pdf")
+            plt.close()
+        else:
+            plt.show()
+    
+        return {
+            'income': income,
+            'consumption': consumption,
+            'assets': assets
+        }               
+    
+      
+
 
 # Usage
 #if __name__ == "__main__":

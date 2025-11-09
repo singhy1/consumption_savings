@@ -153,6 +153,7 @@ def tauchen(mu, phi, sigma, n_states=7, m=3):
     for j in range(1, n_states - 1):
         Pi[:, j] = (norm.cdf((grid[j] + h - mu - phi * grid) / sigma)
                     - norm.cdf((grid[j] - h - mu - phi * grid) / sigma))
+    #grid = np.exp(grid)
 
     return grid, Pi
 
