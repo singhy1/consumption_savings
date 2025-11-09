@@ -89,7 +89,7 @@ def stationary_stats(P, z_grid, tol=1e-10):
     z_grid : np.ndarray
         Array of state values corresponding to rows/columns of P.
     tol : float, optional
-        Tolerance for checking existence of a stationary distribution.
+        Tolerance for convergence.
 
     Returns
     -------
@@ -105,14 +105,23 @@ def stationary_stats(P, z_grid, tol=1e-10):
 
     # Find stationary distribution (left eigenvector associated with eigenvalue 1)
     eigvals, eigvecs = np.linalg.eig(P.T)
+    
+    # Find the eigenvalue closest to 1
     idx = np.argmin(np.abs(eigvals - 1))
+    
+    # Check if eigenvalue is actually close to 1
+    if np.abs(eigvals[idx] - 1) > tol:
+        raise ValueError(f"No eigenvalue close to 1 found. Closest: {eigvals[idx]}")
+    
     pi = np.real(eigvecs[:, idx])
-
-    # Normalize to sum to 1 and remove numerical noise
-    pi = np.maximum(pi, 0)
-    if pi.sum() < tol:
-        raise ValueError("No valid stationary distribution found.")
+    
+    # Normalize to sum to 1
+    pi = np.abs(pi)  # Take absolute value instead of clipping
     pi = pi / pi.sum()
+    
+    # Verify it's a valid distribution
+    if not np.allclose(P.T @ pi, pi, atol=tol):
+        raise ValueError("Found eigenvector is not a valid stationary distribution.")
 
     # Compute mean and std
     mean_z = np.dot(pi, z_grid)
@@ -153,7 +162,8 @@ def tauchen(mu, phi, sigma, n_states=7, m=3):
     for j in range(1, n_states - 1):
         Pi[:, j] = (norm.cdf((grid[j] + h - mu - phi * grid) / sigma)
                     - norm.cdf((grid[j] - h - mu - phi * grid) / sigma))
-    #grid = np.exp(grid)
+    
+    Pi = Pi / Pi.sum(axis=1, keepdims=True)
 
     return grid, Pi
 
