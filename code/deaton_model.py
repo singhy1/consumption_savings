@@ -11,7 +11,7 @@ class DeatonModel:
     """
     
     def __init__(self, r=0.05, delta=0.10, rho=2, mu=100, sigma=10, 
-                 N=100, a_max=100, S=10, phi=0.0):
+                 N=100, a_max=100, S=10, m=4, phi=0.0):
         """
         Initialize the Deaton consumption-savings model.
         
@@ -51,10 +51,12 @@ class DeatonModel:
         
         # Income states
         self.S = S
+        self.m = m
         self.mu = mu
+        self.phi = phi
         self.sigma = sigma
         self.y_grid, self.Pi = tauchen(mu=mu, phi=phi, sigma=sigma, 
-                                               n_states=S, m=4)
+                                               n_states=S, m=m)
         
         # Create w' grid
         self.wprime = np.zeros((self.N, self.S))
