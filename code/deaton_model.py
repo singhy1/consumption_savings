@@ -40,7 +40,7 @@ class DeatonModel:
         self.r = r
         self.R = 1 + r
         self.delta = delta
-        self.beta = round((1 + r) / (1 + delta), 2) 
+        self.beta = 1/(1+delta)
         self.rho = rho
         
         # Asset grid
