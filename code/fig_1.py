@@ -51,14 +51,29 @@ for model, config in models:
 
 # Add 45-degree line
 w_range = np.linspace(0, 250, 100)
-plt.plot(w_range, w_range, 'k--', alpha=0.5, linewidth=1.5, label='45° line')
+plt.plot(w_range, w_range, 'k--', alpha=0.5, linewidth=1.5)
+
+# ============================================================
+# NEW: Vertical line at w = 100
+# ============================================================
+plt.axvline(x=100, color='black', linestyle='-', linewidth=2)
+
+
+# ============================================================
+# NEW: Line c = (mu + rw)(1+r)
+# ============================================================
+r = 0.05
+c_line = (100 + r*w_range) / (1 + r)
+plt.plot(w_range, c_line, color='black', linestyle='-', linewidth=2,
+         label=r"$c = (\mu + rw)/(1+r)$")
+
 
 # Formatting
 plt.xlabel('Cash on Hand (w)', fontsize=12)
 plt.ylabel('Consumption (c)', fontsize=12)
-plt.xlim(0, 150)
-plt.ylim(0, 150)
-plt.title('Consumption Functions: Comparison Across Parameterizations', fontsize=14, fontweight='bold')
+plt.xlim(0, 200)
+plt.ylim(0, 200)
+plt.title('Consumption Functions', fontsize=14, fontweight='bold')
 plt.legend(loc='lower right', fontsize=11)
 plt.grid(True, alpha=0.3)
 plt.tight_layout()
