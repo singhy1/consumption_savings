@@ -57,12 +57,9 @@ class DeatonModel:
         self.sigma = sigma
         self.y_grid, self.Pi = tauchen(mu=mu, phi=phi, sigma=sigma, 
                                                n_states=S, m=m)
-        
-        # Create w' grid
-        self.wprime = np.zeros((self.N, self.S))
-        for n in range(self.N):
-            for s in range(self.S):
-                self.wprime[n, s] = self.aprime_grid[n] + self.y_grid[s]
+
+        # cash on hand grid 
+        self.wprime= self.aprime_grid[:,np.newaxis] + self.y_grid[np.newaxis,:]
         
         # Initialize consumption function - consume everything
         self.c_old = self.wprime.copy()

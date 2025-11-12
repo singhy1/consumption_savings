@@ -6,20 +6,21 @@ figure_path = "C:/Users/yash2/OneDrive/Desktop/phd_classes/macro_1/consumption_s
 
 # testing the tauchen method 
 
+import numpy as np
 
-phi=0.7
-rho=2
-r=0.02 
-mu=30
-delta=0.05
-S=15
-sigma = 10
+# Simple example with small numbers so we can see what's happening
+N = 4  # number of asset grid points
+S = 3  # number of income states
 
-y_grid, Pi = tauchen(mu=mu, phi=phi, sigma=sigma, 
-                                               n_states=S, m=4) 
-print("income grid:", y_grid)
-print("transition matrix:", Pi)
+# Create sample grids
+aprime_grid = np.array([0, 10, 20, 30])  # shape (4,)
+y_grid = np.array([5, 15, 25])            # shape (3,)
 
-pi, y_mean, y_std = stationary_stats(Pi, y_grid)
+aprime_column = aprime_grid[:, np.newaxis]  # shape (4,1)
+#print(aprime_column)
 
-print(pi)
+y_row = y_grid[np.newaxis, :]                # shape (1, 3)
+#print(y_row)
+
+wprime_fast = aprime_column + y_row
+print(wprime_fast)
