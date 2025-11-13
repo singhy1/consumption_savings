@@ -8,9 +8,9 @@ output_path = "C:/Users/yash2/OneDrive/Desktop/phd_classes/macro_1/consumption_s
 # Define model configurations
 model_configs = [
     {"rho": 2, "sigma": 10, "label": r"$\rho=2, \sigma=10$", "color": "blue"},
-    {"rho": 2, "sigma": 15, "label": r"$\rho=2, \sigma=15$", "color": "red"},
+    #{"rho": 2, "sigma": 15, "label": r"$\rho=2, \sigma=15$", "color": "red"},
     {"rho": 3, "sigma": 10, "label": r"$\rho=3, \sigma=10$", "color": "green"},
-    {"rho": 3, "sigma": 15, "label": r"$\rho=3, \sigma=15$", "color": "purple"}
+    #{"rho": 3, "sigma": 15, "label": r"$\rho=3, \sigma=15$", "color": "purple"}
 ]
 
 # Solve all models and store results
@@ -83,8 +83,8 @@ plt.grid(True, alpha=0.3)
 plt.tight_layout()
 
 # Save the figure
-plt.savefig(f"{output_path}/figures/fig1.pdf", dpi=600)
+plt.savefig(f"{output_path}/figures/fig1A.pdf", dpi=600)
 plt.close()  # Close the figure without showing it
-print(f"Figure saved to: {output_path}/fig1.pdf")
+print(f"Figure saved to: {output_path}/fig1A.pdf")
 
 print("\nAll done!")

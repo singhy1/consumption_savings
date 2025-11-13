@@ -182,10 +182,10 @@ AR coeff $\phi$ """
 # Initialize the model with parameters
 model = DeatonModel(
     phi=0.7,        # AR(1) coefficient (this will be overwritten in the loop)
-    rho=3,          # CRRA parameter
-    r=0.05,         # interest rate
+    rho=2,          # CRRA parameter
+    r=0.02,         # interest rate
     mu=30,          # AR(1) mean parameter
-    delta=0.15,     # discount factor
+    delta=0.05,     # discount factor
     sigma=10,       # AR(1) standard deviation
     S=15)           # number of income states
 
@@ -193,7 +193,7 @@ model = DeatonModel(
 model.solve(max_iter=1000)
 
 # Now generate the Deaton table
-phi_values = [-0.4, 0.0, 0.3, 0.5, 0.7, 0.9]
+phi_values = [-0.4, 0.0, 0.3, 0.5, 0.7, 0.8]
 
 results = generate_deaton_table(
     model=model,
@@ -202,6 +202,6 @@ results = generate_deaton_table(
     filepath="C:/Users/yash2/OneDrive/Desktop/phd_classes/macro_1/consumption_savings/output/tables/",
     filename="deaton_table1",
     T=10000,
-    n_sims=30,  # Average over 30 simulations
+    n_sims=2,  # Average over n simulations
     seed=42
 )

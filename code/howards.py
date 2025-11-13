@@ -2,30 +2,13 @@
 # Goal: Howard's Improvement Algorithm 
 
 import numpy as np 
-from utilities import utility, tauchen
+from utilities import utility
 from scipy.sparse import lil_matrix, eye
 from scipy.sparse.linalg import spsolve
 from scipy.optimize import minimize_scalar
-import matplotlib.pyplot as plt
+
 
 output_path = "C:/Users/yash2/OneDrive/Desktop/phd_classes/macro_1/consumption_savings/output"
-# ============================================================
-# SETUP
-# ============================================================
-
-# Model parameters
-beta, R, rho = 0.95, 1.05, 2.0
-
-# Wealth grid
-N_w = 100
-w_grid = np.linspace(0.0, 100.0, N_w)
-
-# Income process (Tauchen)
-y_grid, Pi = tauchen(mu=30, phi=0.7, sigma=10, n_states=15, m=4)
-N_y = len(y_grid)
-
-print(f"Income grid: min={y_grid.min():.1f}, max={y_grid.max():.1f}")
-print(f"Transition matrix: {Pi.shape}, rows sum to {Pi.sum(axis=1).mean():.3f}")
 
 # ============================================================
 # POLICY EVALUATION
@@ -126,44 +109,3 @@ def howard_iteration(w_grid, y_grid, Pi, beta, R, rho, max_iter=50, tol=1e-6):
     print("Warning: Did not converge\n")
     return a_prime, V
 
-# ============================================================
-# RUN
-# ============================================================
-
-a_prime_opt, V_opt = howard_iteration(w_grid, y_grid, Pi, beta, R, rho)
-
-# Consumption policy
-c_opt = w_grid[:, None] - a_prime_opt / R
-
-print(f"Avg savings rate: {(a_prime_opt / (R * w_grid[:, None])).mean():.1%}")
-
-# ============================================================
-# PLOT
-# ============================================================
-
-fig, axes = plt.subplots(1, 3, figsize=(15, 4))
-
-# Savings
-for i_y in [0, N_y//2, N_y-1]:
-    axes[0].plot(w_grid, a_prime_opt[:, i_y], label=f'y={y_grid[i_y]:.0f}')
-axes[0].plot(w_grid, R*w_grid, 'k--', alpha=0.3)
-axes[0].set(xlabel='Cash-on-hand', ylabel='Assets saved', title='Savings Policy')
-axes[0].legend()
-axes[0].grid(alpha=0.3)
-
-# Consumption
-for i_y in [0, N_y//2, N_y-1]:
-    axes[1].plot(w_grid, c_opt[:, i_y], label=f'y={y_grid[i_y]:.0f}')
-axes[1].plot(w_grid, w_grid, 'k--', alpha=0.3)
-axes[1].set(xlabel='Cash-on-hand', ylabel='Consumption', title='Consumption Policy')
-axes[1].legend()
-axes[1].grid(alpha=0.3)
-
-# Value function
-for i_y in [0, N_y//2, N_y-1]:
-    axes[2].plot(w_grid, V_opt[:, i_y], label=f'y={y_grid[i_y]:.0f}')
-axes[2].set(xlabel='Cash-on-hand', ylabel='Value', title='Value Function')
-axes[2].legend()
-axes[2].grid(alpha=0.3) 
-plt.tight_layout()
-plt.savefig(f"{output_path}/figures/howard_results.pdf")

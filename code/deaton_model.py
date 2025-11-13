@@ -189,24 +189,24 @@ class DeatonModel:
         if self.c_old is None:
             raise ValueError("Model not solved yet. Call solve() first.")
     
-        # Create figures directory if it doesn't exist
     
-        plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(12, 8))
         for s in range(self.S):
-            plt.plot(self.wprime[:, s], self.c_old[:, s], 'b-', alpha=0.7, linewidth=1)
+            plt.plot(self.wprime[:, s], self.c_old[:, s], 'b-', alpha=0.7, linewidth=1.5)
 
         # Add 45-degree line
-        w_range = np.linspace(0, np.max(self.wprime), 100)
+        w_range = np.linspace(0, np.max(self.wprime), 200)
         plt.plot(w_range, w_range, 'k--', alpha=0.5, label='45° line')
 
-        plt.xlabel('Cash on Hand (w)')
-        plt.ylabel('Consumption (c)')
-        plt.xlim(0, 350)
-        plt.ylim(0, 350)
-        plt.title('Consumption Function (Deaton Model)')
-        plt.legend()
+        plt.xlabel('Cash on Hand (w)', fontsize = 18)
+        plt.ylabel('Consumption (c)', fontsize = 18)
+        plt.xlim(0, 200)
+        plt.ylim(0, 200)
+        
+        plt.xticks(fontsize=16)
+        plt.yticks(fontsize=16)
+        plt.title('Consumption Function', fontsize = 22)
         plt.grid(True, alpha=0.3)
-    
         
         plt.savefig(f"{filepath}/{filename}.pdf")
         
@@ -295,26 +295,30 @@ class DeatonModel:
         assets = data['assets']
         T = len(income)
 
-        plt.figure(figsize=(12, 7))
+        plt.figure(figsize=(12, 8))
 
         time = np.arange(T)
         plt.plot(time, income, label='Income', 
-         color='black', linewidth=1.5, linestyle='-')
+         color='black', linewidth=2.5, linestyle='-')
         plt.plot(time, consumption - 40, label='Consumption - 40', 
-         color='black', linewidth=1.5, linestyle='--')
+         color='black', linewidth=2.5, linestyle='--')
         plt.plot(time, assets, label='Assets', 
-         color='black', linewidth=1.5, linestyle=':')
+         color='black', linewidth=2.5, linestyle=':')
 
-        plt.xlabel("Period", fontsize=12)
-        plt.ylabel("Level", fontsize=12)
-        plt.title("Lifecycle Simulation (Deaton 1991)", fontsize=13)
-        plt.legend(loc='upper right', fontsize=11)
+        plt.xlabel("Time", fontsize=18)
+        plt.ylabel("Level", fontsize=18)
+        plt.title("Consumption, Assets, and Income Path", fontsize=22)
+        plt.legend(loc='upper right', fontsize=16)
         plt.grid(True, alpha=0.3)
+        
+        plt.xticks(fontsize=16)
+        plt.yticks(fontsize=16)     
+
         plt.xlim(0, T)
         plt.ylim(0, 150)
         plt.tight_layout()
 
-        plt.savefig(f"{filepath}/{filename}.pdf", dpi=300)
+        plt.savefig(f"{filepath}/{filename}.pdf", dpi=600)
         print(f"Figure saved to: {filepath}/{filename}.pdf")
         plt.close()
 
@@ -338,7 +342,7 @@ class DeatonModel:
         # Create AER-style LaTeX table
         latex_table = r"""\begin{table}[htbp]
     \centering
-    \caption{Lifecycle Simulation: Summary Statistics}
+    \caption{Summary Statistics}
     \label{tab:lifecycle_summary}
     \begin{tabular}{@{\extracolsep{5pt}}lcc}
     \hline\hline
